@@ -1,0 +1,283 @@
+{
+  "name": "Text back missed calls with MundoSMS",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "ad516a7e-8f92-43a4-8eb5-3f4a5b6c7d84",
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e7f8a9b0-c1d2-43e4-95f6-a7b8c9d0e1f2",
+              "name": "senderName",
+              "value": "MyCompany",
+              "type": "string"
+            },
+            {
+              "id": "f3a4b5c6-d7e8-49f0-a1b2-c3d4e5f6a7b8",
+              "name": "message",
+              "value": "Hi! Sorry we missed your call. We will call you back as soon as possible.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d1e2f3a4-b5c6-47d8-89e0-f1a2b3c4d5e6",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        300,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "call",
+        "operation": "getMissed",
+        "filters": {
+          "from_datetime": "={{ $now.minus({ hours: 1 }).startOf('second').toISO({ suppressMilliseconds: true }) }}",
+          "limit": 500
+        }
+      },
+      "id": "be627b8f-90a3-44b5-9fc6-4a5b6c7d8e95",
+      "name": "Get Missed Calls",
+      "type": "@mundosms/n8n-nodes-mundosms.mundoSms",
+      "typeVersion": 1,
+      "position": [
+        600,
+        0
+      ],
+      "credentials": {
+        "mundoSmsApi": {
+          "id": null,
+          "name": "MundoSMS API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "b0c1d2e3-f4a5-46b7-88c9-d0e1f2a3b4c5",
+              "leftValue": "={{ $json.number }}",
+              "rightValue": "^34[67]\\d{8}$",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a9b8c7d6-e5f4-4a3b-9c2d-1e0f9a8b7c6d",
+      "name": "Mobile Numbers Only",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.4,
+      "position": [
+        900,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sms",
+        "operation": "send",
+        "to": "={{ $json.number }}",
+        "text": "={{ $('Settings').first().json.message }}",
+        "additionalFields": {
+          "from": "={{ $('Settings').first().json.senderName }}"
+        }
+      },
+      "id": "cf738c90-a1b4-45c6-a0d7-5b6c7d8e9fa6",
+      "name": "Send SMS",
+      "type": "@mundosms/n8n-nodes-mundosms.mundoSms",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        0
+      ],
+      "credentials": {
+        "mundoSmsApi": {
+          "id": null,
+          "name": "MundoSMS API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Text back missed calls with MundoSMS\n\nEvery hour, this workflow finds the people who called your MundoSMS numbers, were not answered and have not been called back yet, and sends each of them an SMS. Nobody who calls you is left without an answer.\n\n### Who is this for\nClinics, shops, agencies and support teams with a MundoSMS virtual PBX that cannot always pick up the phone, and want every missed caller to hear from them within the hour.\n\n### How it works\n1. **Every Hour** starts the workflow once an hour.\n2. **Settings** holds the sender name and the text of the SMS.\n3. **Get Missed Calls** asks MundoSMS for the numbers with missed calls in the last hour that nobody has answered since: one item per number.\n4. **Mobile Numbers Only** keeps the numbers that can receive an SMS.\n5. **Send SMS** sends the message to each of them.\n\n### Setup steps\n- [ ] Install the **MundoSMS** community node (`@mundosms/n8n-nodes-mundosms`).\n- [ ] In the MundoSMS control panel, create an API key that can read calls and send SMS (for example, with the `read` and `write` permissions).\n- [ ] In n8n, create a **MundoSMS API** credential with the token and the private key of that API key, and select it in **Get Missed Calls** and **Send SMS**.\n- [ ] In **Settings**, write your sender name and your message.\n- [ ] In **Mobile Numbers Only**, change the pattern if your callers are not in Spain.\n- [ ] Activate the workflow.\n\n### Customization\n- **Run it more or less often:** change **Every Hour** and the time window of **Get Missed Calls** together, so that each missed call gets one SMS.\n- **Personalize the text:** in **Send SMS**, add data of the caller to the message, such as `missed_count`, the number of times they called.\n- **Answer on WhatsApp:** replace **Send SMS** with a MundoSMS node that sends a WhatsApp template (resource **WhatsApp**, operation **Send Template**).",
+        "height": 900,
+        "width": 640
+      },
+      "id": "0f1e2d3c-4b5a-4968-8776-655443322110",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        -360
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Every hour\nRuns the workflow once an hour. If you change the interval, change the time window in **Get Missed Calls** too.",
+        "height": 440,
+        "width": 260,
+        "color": 7
+      },
+      "id": "1a7c3e52-6b84-4d9f-a0c1-2e3f4a5b6c01",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Settings\nYour sender name (1 to 11 characters: the name the SMS comes from) and the text of the SMS. Change them here: **Send SMS** reads them.",
+        "height": 440,
+        "width": 260,
+        "color": 7
+      },
+      "id": "2b8d4f63-7c95-4ea0-b1d2-3f4a5b6c7d02",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        220,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Get missed calls\nThe numbers with missed calls in the last hour that nobody has answered since, one item per number. Each item has the `number`, how many times they called (`missed_count`) and the line they called (`did`). Hidden numbers are not listed.",
+        "height": 440,
+        "width": 260,
+        "color": 7
+      },
+      "id": "3c9e5074-8da6-4fb1-82e3-4a5b6c7d8e03",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        520,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Mobile numbers only\nLandlines cannot receive SMS. The pattern `^34[67]\\d{8}$` keeps Spanish mobiles: 34, then 6 or 7, then 8 digits. For another country, use its code and its mobile prefixes, for example `^33[67]\\d{8}$` for France or `^447\\d{9}$` for the United Kingdom. To text every number, remove this node.",
+        "height": 440,
+        "width": 260,
+        "color": 7
+      },
+      "id": "4daf6185-9eb7-40c2-93f4-5b6c7d8e9f04",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        820,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Send SMS\nSends the message from **Settings** to each number. Each send carries an idempotency key, so a retry never sends it twice.",
+        "height": 440,
+        "width": 260,
+        "color": 7
+      },
+      "id": "5eb07296-afc8-41d3-a405-6c7d8e9fa005",
+      "name": "Sticky Note5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        -300
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every Hour": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Get Missed Calls",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Missed Calls": {
+      "main": [
+        [
+          {
+            "node": "Mobile Numbers Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mobile Numbers Only": {
+      "main": [
+        [
+          {
+            "node": "Send SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

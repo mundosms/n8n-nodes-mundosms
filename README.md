@@ -97,6 +97,9 @@ example number `34600000000` with yours.
   every hour, **Get Missed** with From set to one hour ago (the numbers with missed calls that nobody has answered
   since, one item per number), and **Send SMS** to each of them (`{{ $json.number }}`). Activate the workflow to run it
   on schedule.
+- [`missed-calls-text-back.json`](https://github.com/mundosms/n8n-nodes-mundosms/blob/main/examples/missed-calls-text-back.json):
+  the same, ready to use as a template: a **Settings** node with your sender name and message, a **Filter** that keeps
+  only mobile numbers (Spanish mobiles by default, `^34[67]\d{8}$`), and sticky notes that explain each step and the setup.
 
 ## Resources
 
