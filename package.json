@@ -1,0 +1,61 @@
+{
+	"name": "@mundosms/n8n-nodes-mundosms",
+	"version": "1.0.0",
+	"description": "MundoSMS for n8n: send SMS and WhatsApp messages, read the call history, click2dial, VozPush campaigns and NumCheck, with the request signing of the MundoSMS REST API v3 done for you.",
+	"license": "MIT",
+	"homepage": "https://www.mundosms.es/api-v3",
+	"keywords": [
+		"n8n-community-node-package",
+		"mundosms",
+		"sms",
+		"whatsapp",
+		"voip",
+		"click2dial"
+	],
+	"author": {
+		"name": "MundoSMS",
+		"email": "contacto@mundosms.es"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/mundosms/n8n-nodes-mundosms.git"
+	},
+	"scripts": {
+		"build": "n8n-node build",
+		"build:watch": "tsc --watch",
+		"dev": "n8n-node dev",
+		"lint": "n8n-node lint",
+		"lint:fix": "n8n-node lint --fix",
+		"release": "n8n-node release",
+		"prepublishOnly": "n8n-node prerelease"
+	},
+	"files": [
+		"dist",
+		"!dist/tsconfig.tsbuildinfo"
+	],
+	"publishConfig": {
+		"access": "public",
+		"provenance": true
+	},
+	"n8n": {
+		"n8nNodesApiVersion": 1,
+		"strict": true,
+		"credentials": [
+			"dist/credentials/MundoSmsApi.credentials.js"
+		],
+		"nodes": [
+			"dist/nodes/MundoSms/MundoSms.node.js"
+		]
+	},
+	"devDependencies": {
+		"@n8n/node-cli": "0.57.4",
+		"eslint": "9.39.4",
+		"n8n-workflow": "2.46.5",
+		"prettier": "3.8.3",
+		"release-it": "20.2.0",
+		"typescript": "5.9.3"
+	},
+	"peerDependencies": {
+		"n8n-workflow": "*"
+	}
+}

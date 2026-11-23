@@ -1,0 +1,57 @@
+# Publishes the package to npm with a provenance statement when a version tag is pushed. The tag is the version in
+# package.json, without a "v": 1.0.0. n8n requires community nodes to be published this way (GitHub Actions + npm
+# provenance).
+#
+# Authentication, either of:
+#   - npm Trusted Publishing (no secret): npmjs.com → the package → Settings → Trusted Publisher → GitHub Actions,
+#     repository mundosms/n8n-nodes-mundosms, workflow publish.yml. It needs npm 11.5.1 or later, hence the npm step.
+#   - an NPM_TOKEN secret (a granular token that can publish to the @mundosms scope). It is needed for the first version,
+#     because Trusted Publishing is set up on a package that already exists.
+#
+# `npm run release` (n8n-node release) inside GitHub Actions runs lint and build and then `npm publish` with provenance.
+# It does not change the version, tag, push or create a GitHub release: that is what it does when run locally.
+name: Publish
+
+on:
+  push:
+    tags:
+      - '*.*.*'
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-24.04
+    permissions:
+      # The OIDC token for the npm provenance statement (and for Trusted Publishing).
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.23.2'
+          cache: 'npm'
+
+      - name: Check that the tag is the version in package.json
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "$GITHUB_REF_NAME" != "$VERSION" ]; then
+            echo "The tag $GITHUB_REF_NAME is not the version in package.json ($VERSION)"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Set up npm for Trusted Publishing
+        # Node.js 22.23.2 comes with npm 10.9.8, which cannot use Trusted Publishing.
+        run: npm install -g npm@11.19.1
+
+      - name: Release
+        run: |
+          [ -n "$NPM_TOKEN" ] && npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
+          npm run release
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

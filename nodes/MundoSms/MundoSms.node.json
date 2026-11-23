@@ -1,0 +1,18 @@
+{
+	"node": "@mundosms/n8n-nodes-mundosms.mundoSms",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Communication"],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://www.mundosms.es/api-v3#autenticacion-y-firma"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://www.mundosms.es/api-v3"
+			}
+		]
+	}
+}
