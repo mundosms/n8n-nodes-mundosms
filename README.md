@@ -14,8 +14,8 @@ milliseconds and the HMAC signature of your API Key), so you do not have to buil
 [Credentials](#credentials) ·
 [Compatibility](#compatibility) ·
 [Usage](#usage) ·
-[Resources](#resources) ·
-[En español](#en-español)
+[Example workflows](#example-workflows) ·
+[Resources](#resources)
 
 ## Installation
 
@@ -42,15 +42,15 @@ turn on **Return All**.
 
 ## Credentials
 
-You need a MundoSMS account and an API Key. Create it in the MundoSMS panel, in **API y Soporte → Claves de API**, and
-give it the permissions of the operations you will use (WhatsApp needs the `whatsapp` permission: the generic `read` and
-`write` do not include it).
+You need a MundoSMS account and an API key. Create the API key in the MundoSMS control panel, in its API keys section,
+and give it the permissions of the operations you will use. `read` covers every query and `write` every action, WhatsApp
+included. `write` does not read, so a workflow that sends and then checks the status needs both.
 
 In n8n, create a **MundoSMS API** credential with:
 
-- **Token**: the Token of the API Key (it starts with `eyJ`).
-- **Private Key**: its private key (button «Mostrar»). Leave it empty only if your API Key does not require signed
-  requests.
+- **Token**: the token of the API key (it starts with `eyJ`).
+- **Private Key**: the private key shown next to the token in the control panel. It signs each request. Leave it empty
+  only if your API key does not require signed requests.
 - **Base URL**: `https://api.mundosms.es/v3` (leave it as it is).
 
 The credential test calls `GET /v3/account`. The signature is computed by the credential itself, so it also works with the
@@ -80,29 +80,29 @@ Tested with n8n 2.46.6. No dependencies besides n8n itself.
 - **Errors** show the `message` of the API, its `detail` and the `X-Request-Id` of the request, which finds it in the
   panel's API logs.
 
+## Example workflows
+
+The [`examples`](https://github.com/mundosms/n8n-nodes-mundosms/tree/main/examples) folder of the repository has
+workflows ready to import. Download one, and in n8n open a new workflow and choose **Import from File** (or paste its
+JSON into the canvas). Then open each MundoSMS node and select your MundoSMS API credential. The examples refer to a
+credential named "MundoSMS API": if yours has that name, n8n links it when the workflow is imported or saved. Replace the
+example number `34600000000` with yours.
+
+- [`send-sms.json`](https://github.com/mundosms/n8n-nodes-mundosms/blob/main/examples/send-sms.json): a manual trigger
+  and **Send SMS** to one number, with the sender (`from`) set in Additional Fields.
+- [`whatsapp-template.json`](https://github.com/mundosms/n8n-nodes-mundosms/blob/main/examples/whatsapp-template.json):
+  a manual trigger and **Send Template** with three variables (`{{1}}`, `{{2}}`, `{{3}}` of the template body) and your
+  own reference (`client_id`). The template has to be approved in WhatsApp: put its name and language.
+- [`missed-calls-to-sms.json`](https://github.com/mundosms/n8n-nodes-mundosms/blob/main/examples/missed-calls-to-sms.json):
+  every hour, **Get Missed** with From set to one hour ago (the numbers with missed calls that nobody has answered
+  since, one item per number), and **Send SMS** to each of them (`{{ $json.number }}`). Activate the workflow to run it
+  on schedule.
+
 ## Resources
 
 - [n8n community nodes documentation](https://docs.n8n.io/integrations/#community-nodes)
 - [MundoSMS REST API v3 reference](https://www.mundosms.es/api-v3)
 - [MundoSMS SDK for PHP, Python and Node.js](https://github.com/mundosms/mundosms-sdk)
-
-## En español
-
-Nodo de comunidad de n8n para la [API REST v3 de MundoSMS](https://www.mundosms.es/api-v3): SMS, WhatsApp, historial de
-llamadas, llamadas perdidas, click2dial, campañas de VozPush, NumCheck y saldo. Firma cada petición por ti.
-
-- **Instalación**: en n8n, **Settings → Community Nodes → Install**, con el nombre `@mundosms/n8n-nodes-mundosms`.
-- **Credencial «MundoSMS API»**: el Token y la clave privada de una API Key creada en el panel (**API y Soporte → Claves
-  de API**). La prueba de la credencial pide `GET /v3/account`. Vale también para el nodo **HTTP Request** (credencial
-  predefinida), que firma igual.
-- **WhatsApp sin confirmar** (HTTP 202, `data.state` `"unknown"`): WhatsApp no contestó y el mensaje **puede haber
-  salido**. Es la salida del nodo, no un error, así que «Retry On Fail» no lo manda dos veces. No lo reenvíes.
-- **Los envíos no salen dos veces**: cada envío lleva una `Idempotency-Key`, la misma para cada elemento en la misma
-  ejecución, y la API no lo vuelve a hacer si se repite: vale para los reintentos del nodo y para «Retry On Fail». Para usar
-  la tuya (el id de tu pedido, por ejemplo), rellena **Idempotency Key** en «Additional Fields»: así tampoco sale dos veces
-  en otra ejecución, en 24 horas.
-- **Reintentos**: el nodo reintenta un `429` y un fallo de red en cualquier operación, y un envío también ante un
-  `409 Request in progress`. Los `5xx`, solo en las consultas.
 
 ## License
 

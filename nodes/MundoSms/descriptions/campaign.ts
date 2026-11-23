@@ -94,7 +94,7 @@ export const campaignDescription: INodeProperties[] = [
 				name: 'client_id',
 				type: 'string',
 				default: '',
-				description: 'Your reference, up to 20 characters',
+				description: 'Your reference, up to 50 characters',
 			},
 			{
 				displayName: 'Date Window End',

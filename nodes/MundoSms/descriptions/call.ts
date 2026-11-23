@@ -110,14 +110,16 @@ export const callDescription: INodeProperties[] = [
 			},
 			orderOption,
 			{
-				displayName: 'Status',
-				name: 'status',
+				displayName: 'Outcome',
+				name: 'outcome',
 				type: 'options',
 				default: 'answered',
 				options: [
 					{ name: 'Answered', value: 'answered' },
 					{ name: 'Missed', value: 'missed' },
 				],
+				description:
+					'Incoming: whether somebody picked it up. Outgoing: whether the callee answered. Not with Type "Function".',
 			},
 			{
 				displayName: 'Stop at Ongoing',

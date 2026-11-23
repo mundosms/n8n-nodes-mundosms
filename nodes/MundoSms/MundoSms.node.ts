@@ -203,7 +203,7 @@ async function executeOperation(
 		if (operation === 'getAll') return await list('/calls');
 		if (operation === 'getMissed') {
 			const response = await request.call(this, 'GET', '/calls/missed', filters(), undefined, i);
-			return ((response.data as IDataObject | undefined)?.numbers ?? []) as IDataObject[];
+			return ((response.data as IDataObject | undefined)?.missed_numbers ?? []) as IDataObject[];
 		}
 		if (operation === 'dial') {
 			const body = { extension: (param('extension') as string).trim(), to: (param('to') as string).trim(), ...bodyFields() };

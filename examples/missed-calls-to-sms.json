@@ -1,0 +1,104 @@
+{
+  "name": "MundoSMS: text back the missed calls of the last hour",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "ad516a7e-8f92-43a4-8eb5-3f4a5b6c7d84",
+      "name": "Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "call",
+        "operation": "getMissed",
+        "filters": {
+          "from_datetime": "={{ $now.minus({ hours: 1 }).startOf('second').toISO({ suppressMilliseconds: true }) }}",
+          "limit": 500
+        }
+      },
+      "id": "be627b8f-90a3-44b5-9fc6-4a5b6c7d8e95",
+      "name": "Get Missed Calls",
+      "type": "@mundosms/n8n-nodes-mundosms.mundoSms",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "mundoSmsApi": {
+          "id": null,
+          "name": "MundoSMS API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "sms",
+        "operation": "send",
+        "to": "={{ $json.number }}",
+        "text": "Sorry we missed your call. We will call you back as soon as possible.",
+        "additionalFields": {
+          "from": "MyCompany"
+        }
+      },
+      "id": "cf738c90-a1b4-45c6-a0d7-5b6c7d8e9fa6",
+      "name": "Send SMS",
+      "type": "@mundosms/n8n-nodes-mundosms.mundoSms",
+      "typeVersion": 1,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "mundoSmsApi": {
+          "id": null,
+          "name": "MundoSMS API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every Hour": {
+      "main": [
+        [
+          {
+            "node": "Get Missed Calls",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Missed Calls": {
+      "main": [
+        [
+          {
+            "node": "Send SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

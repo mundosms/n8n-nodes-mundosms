@@ -1,0 +1,74 @@
+{
+  "name": "MundoSMS: send a WhatsApp template",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "8b3f4e5c-6d70-4182-8c93-1d2e3f4a5b62",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "whatsapp",
+        "operation": "sendTemplate",
+        "to": "34600000000",
+        "templateName": "appointment_reminder",
+        "language": "en",
+        "variables": {
+          "variable": [
+            {
+              "value": "Anna"
+            },
+            {
+              "value": "Tuesday 16"
+            },
+            {
+              "value": "5:30 PM"
+            }
+          ]
+        },
+        "additionalFields": {
+          "client_id": "appointment-881"
+        }
+      },
+      "id": "9c405f6d-7e81-4293-9da4-2e3f4a5b6c73",
+      "name": "Send WhatsApp Template",
+      "type": "@mundosms/n8n-nodes-mundosms.mundoSms",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "mundoSmsApi": {
+          "id": null,
+          "name": "MundoSMS API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

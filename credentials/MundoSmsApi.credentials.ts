@@ -31,7 +31,7 @@ export class MundoSmsApi implements ICredentialType {
 			required: true,
 			default: '',
 			description:
-				'The Token of your API Key (it starts with eyJ). Create it in the MundoSMS panel, in API y Soporte → Claves de API.',
+				'The token of your API key (it starts with eyJ). Create the API key in the MundoSMS control panel, in its API keys section, with the permissions of the operations you will use.',
 		},
 		{
 			displayName: 'Private Key',
@@ -40,7 +40,7 @@ export class MundoSmsApi implements ICredentialType {
 			typeOptions: { password: true },
 			default: '',
 			description:
-				'The private key of the API Key (button "Mostrar"), used to sign each request. Leave it empty only if your API Key does not require signed requests.',
+				'The private key of the API key, shown next to its token in the control panel. It signs each request. Leave it empty only if your API key does not require signed requests.',
 		},
 		{
 			displayName: 'Base URL',

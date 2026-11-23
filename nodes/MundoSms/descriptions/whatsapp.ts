@@ -145,7 +145,7 @@ export const whatsappDescription: INodeProperties[] = [
 				name: 'client_id',
 				type: 'string',
 				default: '',
-				description: 'Your reference, up to 100 characters',
+				description: 'Your reference, up to 50 characters',
 			},
 			{
 				displayName: 'Code',

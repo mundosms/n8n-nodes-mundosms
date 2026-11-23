@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.1
+
+- The credential and the README are in English only.
+- Example workflows in the `examples` folder of the repository: send an SMS, send a WhatsApp template and text back the
+  missed calls of the last hour. The README explains them.
+- Call → Get Missed: it returned no items, because the API lists the numbers in `data.missed_numbers`.
+- Call → Get Many: the filter "Status" is now "Outcome" (`outcome`, answered or missed), the name the API expects. With
+  "Status" the API answered `400`.
+- The descriptions of Client ID say the limit of the API: 50 characters.
+
 ## 1.0.0
 
 First version: the MundoSMS node and the MundoSMS API credential.

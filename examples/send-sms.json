@@ -1,0 +1,60 @@
+{
+  "name": "MundoSMS: send an SMS",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "6f1d2c3a-4b5e-4f60-8a71-9b0c1d2e3f40",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "sms",
+        "operation": "send",
+        "to": "34600000000",
+        "text": "Hello from n8n! This is a test message sent with MundoSMS.",
+        "additionalFields": {
+          "from": "MyCompany"
+        }
+      },
+      "id": "7a2e3d4b-5c6f-4071-9b82-0c1d2e3f4a51",
+      "name": "Send SMS",
+      "type": "@mundosms/n8n-nodes-mundosms.mundoSms",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "credentials": {
+        "mundoSmsApi": {
+          "id": null,
+          "name": "MundoSMS API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
