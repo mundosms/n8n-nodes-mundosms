@@ -184,7 +184,7 @@ async function executeOperation(
 				if (header !== undefined) template.header = header;
 				if (code !== undefined) template.code = code;
 				if (buttons.length) {
-					template.buttons = buttons.map((b) => ({ index: b.index, [String(b.kind)]: b.value }));
+					template.button_params = buttons.map((b) => ({ index: b.index, [String(b.kind)]: b.value }));
 				}
 				body.type = 'template';
 				body.template = template;

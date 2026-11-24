@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2
+
+- WhatsApp → Send Template: the values of the template buttons go in `template.button_params`, the name the API expects
+  now. With `template.buttons` the API answers `400` (`buttons` is the message type with reply buttons, and the
+  definition of the buttons in the list of templates).
+
 ## 1.0.1
 
 - The credential and the README are in English only.

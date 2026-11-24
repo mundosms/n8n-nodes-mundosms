@@ -16,7 +16,7 @@ import type { IDataObject, IExecuteFunctions, IHttpRequestMethods, JsonObject } 
 import { NodeApiError, NodeOperationError, sleep } from 'n8n-workflow';
 
 export const CREDENTIAL_NAME = 'mundoSmsApi';
-const PACKAGE_VERSION = '1.0.1';
+const PACKAGE_VERSION = '1.0.2';
 const REPEATABLE_METHODS = ['GET', 'PATCH', 'DELETE'];
 const RETRIES = 3;
 const MAX_WAIT_SECONDS = 60;
