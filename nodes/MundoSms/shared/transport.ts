@@ -3,10 +3,11 @@
  * y los listados por cursor.
  *
  * Cada POST lleva su Idempotency-Key (shared/idempotency.ts), la misma en todos sus intentos. Reintenta, como el SDK: un
- * 429, en cualquier método (no se hizo nada); un fallo de red o un 409 «Duplicated request» (la misma petición firmada llegó
- * dos veces), en cualquier método, y un POST con su clave también ante un 409 «Request in progress» (la primera con esa
- * clave aún no ha terminado); un 5xx, solo en GET (la API no guarda los 5xx: repetir un POST lo haría otra vez). Espera lo
- * que diga Retry-After (como mucho 60 s) o, si no lo trae, 1, 2, 4 s.
+ * 429, en cualquier método (no se hizo nada); un fallo de red o un 409 con code duplicated_request (la misma petición firmada
+ * llegó dos veces), en cualquier método, y un POST con su clave también ante un 409 con code request_in_progress (la primera
+ * con esa clave aún no ha terminado); un 5xx, solo en GET (la API no guarda los 5xx: repetir un POST lo haría otra vez).
+ * Espera lo que diga Retry-After (como mucho 60 s) o, si no lo trae, 1, 2, 4 s. Un 409 se decide por su code, nunca por el
+ * texto del message.
  *
  * Una respuesta 2xx se devuelve siempre, también con "status": "error". El 202 de un WhatsApp sin confirmar (WhatsApp no
  * contestó y el mensaje PUEDE haber salido) llega con "status": "success" y data.state "unknown": si fuera un error,
@@ -16,7 +17,7 @@ import type { IDataObject, IExecuteFunctions, IHttpRequestMethods, JsonObject } 
 import { NodeApiError, NodeOperationError, sleep } from 'n8n-workflow';
 
 export const CREDENTIAL_NAME = 'mundoSmsApi';
-const PACKAGE_VERSION = '1.0.2';
+const PACKAGE_VERSION = '1.0.3';
 const REPEATABLE_METHODS = ['GET', 'PATCH', 'DELETE'];
 const RETRIES = 3;
 const MAX_WAIT_SECONDS = 60;
@@ -95,14 +96,14 @@ export async function mundoSmsRequest(
 		const statusCode = response.statusCode;
 		const json = decodeBody(response.body);
 		if (statusCode >= 200 && statusCode < 300) {
-			return json ?? { status: 'success', status_code: '0', message: 'OK' };
+			return json ?? { status: 'success', message: 'OK' };
 		}
-		const message = json && typeof json.message === 'string' ? json.message : '';
+		const code = json && typeof json.code === 'string' ? json.code : '';
 		const retryable =
 			statusCode === 429 ||
 			(method === 'GET' && statusCode >= 500) ||
-			(statusCode === 409 && message.startsWith('Duplicated request') && repeatableWithoutResponse) ||
-			(statusCode === 409 && message === 'Request in progress' && method === 'POST' && !!idempotencyKey);
+			(statusCode === 409 && code === 'duplicated_request' && repeatableWithoutResponse) ||
+			(statusCode === 409 && code === 'request_in_progress' && method === 'POST' && !!idempotencyKey);
 		if (retryable && attempt <= RETRIES) {
 			await sleep(retryWait(getHeader(response.headers, 'retry-after'), attempt) * 1000);
 			continue;
@@ -147,9 +148,14 @@ export async function mundoSmsList(
 		if (listField === null) listField = Object.keys(data).find((k) => Array.isArray(data[k])) ?? null;
 		if (listField) items.push(...(data[listField] as IDataObject[]));
 		if (!returnAll && items.length >= limit) return items.slice(0, limit);
-		if (!data.has_more || !data.results || !data.next_cursor) return items;
-		// un cursor que ya salió daría vueltas para siempre: mejor parar con un error que dejar el workflow colgado
+		// El final, como en los SDK (1.0.3): has_more false (con stop_at_ongoing, también la página que se para en una llamada
+		// en curso), sin next_cursor, con ongoing_call o con el cursor quieto. Una página VACÍA con has_more true no es el
+		// final: es la de una lista con un filtro que ha mirado muchas filas sin coincidencias (el tope de 5.000 de
+		// GET /v3/calls), y su next_cursor avanza. Hasta la 1.0.2 se paraba ahí y devolvía la lista cortada sin avisar
+		if (!data.has_more || !data.next_cursor || data.ongoing_call) return items;
 		const cursor = String(data.next_cursor);
+		if (cursor === qs.cursor) return items;
+		// un cursor que ya salió antes daría vueltas para siempre: mejor parar con un error que dejar el workflow colgado
 		if (seenCursors.has(cursor)) {
 			throw new NodeOperationError(this.getNode(), `The API returned the cursor "${cursor}" twice for ${path}`, {
 				itemIndex,

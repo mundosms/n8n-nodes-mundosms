@@ -38,7 +38,8 @@ documentation for other ways to install it (for example, with npm in a self-host
 | NumCheck | Check · Get (the result) |
 
 The "Get Many" operations follow the cursor of the API (`next_cursor`) page by page, repeating the same filters, when you
-turn on **Return All**.
+turn on **Return All**, until `has_more` is false. An empty page with `has_more: true` is not the end: with a filter, the
+API sends one after looking at many rows without a match, and the list goes on in the next page.
 
 ## Credentials
 
@@ -75,7 +76,8 @@ Tested with n8n 2.46.6. No dependencies besides n8n itself.
   Additional Fields: 1 to 64 letters without accents, digits and `_ . : -`. Then not even another execution sends it
   again within 24 hours.
 - **Retries**: the node retries a `429` (nothing was done) and a network failure in any operation, and a send also when the
-  API answers `409 Request in progress` (the first one with that key has not finished), waiting what `Retry-After` says.
+  API answers `409` with the code `request_in_progress` (the first one with that key has not finished), waiting what
+  `Retry-After` says.
   The `5xx` errors are retried only in reads: the API does not keep them, so repeating a send would do it again.
 - **Errors** show the `message` of the API, its `detail` and the `X-Request-Id` of the request, which finds it in the
   panel's API logs.
