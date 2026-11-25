@@ -5,19 +5,25 @@
  * Cada POST lleva su Idempotency-Key (shared/idempotency.ts), la misma en todos sus intentos. Reintenta, como el SDK: un
  * 429, en cualquier método (no se hizo nada); un fallo de red o un 409 con code duplicated_request (la misma petición firmada
  * llegó dos veces), en cualquier método, y un POST con su clave también ante un 409 con code request_in_progress (la primera
- * con esa clave aún no ha terminado); un 5xx, solo en GET (la API no guarda los 5xx: repetir un POST lo haría otra vez).
+ * con esa clave aún no ha terminado); un 5xx, solo en GET. Un POST con 5xx no se repite: un 500 puede llegar con la operación
+ * hecha y la API lo guarda con la clave (repetirlo con ella devuelve ese mismo 500, sin hacerlo otra vez), y un 503 no hizo
+ * nada (se puede repetir con la misma clave: «Retry On Fail» lo hace, porque la clave es la misma en la misma ejecución).
  * Espera lo que diga Retry-After (como mucho 60 s) o, si no lo trae, 1, 2, 4 s. Un 409 se decide por su code, nunca por el
  * texto del message.
  *
- * Una respuesta 2xx se devuelve siempre, también con "status": "error". El 202 de un WhatsApp sin confirmar (WhatsApp no
- * contestó y el mensaje PUEDE haber salido) llega con "status": "success" y data.state "unknown": si fuera un error,
- * «Retry On Fail» de n8n lo repetiría y el cliente lo recibiría dos veces.
+ * Una respuesta 2xx con JSON se devuelve siempre, también con "status": "error"; una vacía es {"status": "success", "message":
+ * "OK"}, y una que no es JSON (el HTML de un proxy o de un portal cautivo), un error, como en los SDK (1.0.4). El 202 de un
+ * WhatsApp sin confirmar (WhatsApp no contestó y el mensaje PUEDE haber salido) llega con "status": "success" y data.state
+ * "unknown": si fuera un error, «Retry On Fail» de n8n lo repetiría y el cliente lo recibiría dos veces.
+ *
+ * Los errores llevan en `context.mundoSms` lo que sale con «Continue On Fail» y por la salida de error (1.0.4): code, http,
+ * message, detail, data y request_id (MundoSms.node.ts).
  */
 import type { IDataObject, IExecuteFunctions, IHttpRequestMethods, JsonObject } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError, sleep } from 'n8n-workflow';
 
 export const CREDENTIAL_NAME = 'mundoSmsApi';
-const PACKAGE_VERSION = '1.0.3';
+const PACKAGE_VERSION = '1.0.4';
 const REPEATABLE_METHODS = ['GET', 'PATCH', 'DELETE'];
 const RETRIES = 3;
 const MAX_WAIT_SECONDS = 60;
@@ -41,6 +47,33 @@ function getHeader(headers: unknown, name: string): string | undefined {
 		if (k.toLowerCase() === name) return Array.isArray(v) ? String(v[0]) : String(v);
 	}
 	return undefined;
+}
+
+/** Un cuerpo vacío (un 204, o un 2xx sin nada): no es un error. */
+function isEmptyBody(body: unknown): boolean {
+	if (body === undefined || body === null) return true;
+	if (typeof body === 'string') return body.trim() === '';
+	if (typeof body === 'object' && 'length' in body) return (body as { length: unknown }).length === 0;
+	return false;
+}
+
+/**
+ * Lo que sale de un error con «Continue On Fail» o por la salida de error (MundoSms.node.ts lo lee de `context.mundoSms`):
+ * los campos de la respuesta de la API, como en los SDK. Sin respuesta, `http` 0 y el resto a null.
+ */
+function withApiFields(
+	error: NodeApiError,
+	fields: { code: string | null; http: number; message: string; detail: string | null; data: unknown; requestId: string | null },
+): NodeApiError {
+	error.context.mundoSms = {
+		code: fields.code,
+		http: fields.http,
+		message: fields.message,
+		detail: fields.detail,
+		data: (fields.data ?? null) as IDataObject | null,
+		request_id: fields.requestId,
+	};
+	return error;
 }
 
 function decodeBody(body: unknown): IDataObject | null {
@@ -91,12 +124,34 @@ export async function mundoSmsRequest(
 				await sleep(retryWait(undefined, attempt) * 1000);
 				continue;
 			}
-			throw new NodeApiError(this.getNode(), error as JsonObject, { itemIndex });
+			throw withApiFields(new NodeApiError(this.getNode(), error as JsonObject, { itemIndex }), {
+				code: null,
+				http: 0,
+				message: 'No response from the API: ' + String((error as Error).message ?? error),
+				detail: null,
+				data: null,
+				requestId: null,
+			});
 		}
 		const statusCode = response.statusCode;
 		const json = decodeBody(response.body);
+		const requestId = getHeader(response.headers, 'x-request-id') ?? null;
 		if (statusCode >= 200 && statusCode < 300) {
-			return json ?? { status: 'success', message: 'OK' };
+			if (json) return json;
+			if (isEmptyBody(response.body)) return { status: 'success', message: 'OK' };
+			// 1.0.4: un 2xx que no es JSON (el HTML de un proxy o de un portal cautivo) no es una respuesta de la API: es un error,
+			// como en los SDK. Hasta la 1.0.3 salía como un éxito vacío
+			const contentType = (getHeader(response.headers, 'content-type') ?? '').split(';')[0].trim();
+			const notJson = `HTTP ${statusCode}: the response is not JSON (${contentType || 'no Content-Type'})`;
+			throw withApiFields(
+				new NodeApiError(this.getNode(), { message: notJson } as JsonObject, {
+					httpCode: String(statusCode),
+					message: notJson,
+					description: requestId ? 'X-Request-Id: ' + requestId : undefined,
+					itemIndex,
+				}),
+				{ code: null, http: statusCode, message: notJson, detail: null, data: null, requestId },
+			);
 		}
 		const code = json && typeof json.code === 'string' ? json.code : '';
 		const retryable =
@@ -108,19 +163,25 @@ export async function mundoSmsRequest(
 			await sleep(retryWait(getHeader(response.headers, 'retry-after'), attempt) * 1000);
 			continue;
 		}
-		const requestId = getHeader(response.headers, 'x-request-id');
-		const detail = [
-			json && typeof json.detail === 'string' ? json.detail : '',
-			requestId ? 'X-Request-Id: ' + requestId : '',
-		]
-			.filter(Boolean)
-			.join(' · ');
-		throw new NodeApiError(this.getNode(), (json ?? { message: 'HTTP ' + statusCode }) as JsonObject, {
-			httpCode: String(statusCode),
-			message: json && typeof json.message === 'string' ? json.message : 'HTTP ' + statusCode,
-			description: detail || undefined,
-			itemIndex,
-		});
+		const apiDetail = json && typeof json.detail === 'string' ? json.detail : null;
+		const message = json && typeof json.message === 'string' ? json.message : 'HTTP ' + statusCode;
+		const detail = [apiDetail ?? '', requestId ? 'X-Request-Id: ' + requestId : ''].filter(Boolean).join(' · ');
+		throw withApiFields(
+			new NodeApiError(this.getNode(), (json ?? { message: 'HTTP ' + statusCode }) as JsonObject, {
+				httpCode: String(statusCode),
+				message,
+				description: detail || undefined,
+				itemIndex,
+			}),
+			{
+				code: json && json.code !== undefined && json.code !== null ? (typeof json.code === 'string' ? json.code : JSON.stringify(json.code)) : null,
+				http: statusCode,
+				message,
+				detail: apiDetail,
+				data: json ? json.data : null,
+				requestId,
+			},
+		);
 	}
 }
 

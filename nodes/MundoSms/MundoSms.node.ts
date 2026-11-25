@@ -101,10 +101,28 @@ export class MundoSms implements INodeType {
 				for (const json of results) returnData.push({ json, pairedItem: { item: i } });
 			} catch (error) {
 				if (this.continueOnFail()) {
-					returnData.push({
-						json: { error: (error as Error).message, description: (error as IDataObject).description ?? null },
-						pairedItem: { item: i },
-					});
+					// «Continue On Fail» y la salida de error (1.0.4): lo que trajo la API (code, http, message, detail, data y
+					// request_id, de context.mundoSms: shared/transport.ts). Hasta la 1.0.3 solo salían error y description, y se
+					// perdían el code y el código HTTP.
+					// n8n solo manda un elemento por la SALIDA DE ERROR si su json no tiene más que error, message y details
+					// (handleNodeErrorOutput de n8n-core; un `error` en el elemento tampoco vale: normalizeNodeErrors deja el json
+					// en {error}). Con la salida de error, lo de la API va en `details`; con «Continue» (la salida normal), arriba.
+					// Hasta la 1.0.3, por su `description`, un error con la salida de error salía por la BUENA
+					const e = error as Error & { description?: string | null; context?: IDataObject };
+					const api = (e.context?.mundoSms ?? {}) as IDataObject;
+					const fields: IDataObject = {
+						code: api.code ?? null,
+						http: api.http ?? null,
+						message: api.message ?? e.message,
+						detail: api.detail ?? null,
+						data: api.data ?? null,
+						request_id: api.request_id ?? null,
+					};
+					const json: IDataObject =
+						this.getNode().onError === 'continueErrorOutput'
+							? { error: e.message, message: fields.message, details: { ...fields, description: e.description ?? null } }
+							: { error: e.message, ...fields, description: e.description ?? null };
+					returnData.push({ json, pairedItem: { item: i } });
 					continue;
 				}
 				if (error instanceof NodeApiError) {

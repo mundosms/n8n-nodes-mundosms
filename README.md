@@ -78,9 +78,19 @@ Tested with n8n 2.46.6. No dependencies besides n8n itself.
 - **Retries**: the node retries a `429` (nothing was done) and a network failure in any operation, and a send also when the
   API answers `409` with the code `request_in_progress` (the first one with that key has not finished), waiting what
   `Retry-After` says.
-  The `5xx` errors are retried only in reads: the API does not keep them, so repeating a send would do it again.
+  The `5xx` errors are retried only in reads. A send that gets a `5xx` is not repeated by the node: a `500` may come with
+  the send already done, and the API keeps it with the `Idempotency-Key`, so repeating it with the same key returns that
+  same `500` without doing it again (check whether it went out before sending it with another key); a `503` did nothing
+  and can be repeated with the same key, which is what **Retry On Fail** does.
 - **Errors** show the `message` of the API, its `detail` and the `X-Request-Id` of the request, which finds it in the
-  panel's API logs.
+  panel's API logs. With **On Error** → *Continue* (Continue On Fail), the item carries the fields of the API: `code` (a
+  word in English, such as `insufficient_credit` or `not_found`: the one to check in an **If** node), `http` (the HTTP
+  status; `0` if there was no response), `message`, `detail`, `data` and `request_id`, plus `error` and `description` (the
+  texts n8n shows). With *Continue (using error output)*, the item goes out through the error output with `error`,
+  `message` and the same fields inside `details` (`{{ $json.details.code }}`): n8n only sends an item to the error output
+  when it has nothing else.
+- **A successful answer that is not JSON** (the HTML page of a proxy or a captive portal) is an error, not an empty
+  success.
 
 ## Example workflows
 
@@ -107,7 +117,7 @@ example number `34600000000` with yours.
 
 - [n8n community nodes documentation](https://docs.n8n.io/integrations/#community-nodes)
 - [MundoSMS REST API v3 reference](https://www.mundosms.es/api-v3)
-- [MundoSMS SDK for PHP, Python and Node.js](https://github.com/mundosms/mundosms-sdk)
+- [MundoSMS SDK for PHP, Python, Node.js, Java, C#, Go and Ruby](https://github.com/mundosms/mundosms-sdk)
 
 ## License
 

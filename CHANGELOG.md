@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.4
+
+- **Continue On Fail and the error output keep the fields of the API.** With On Error → *Continue*, the item of a failed
+  operation carries `code` (the word that says what failed: `insufficient_credit`, `not_found`,
+  `whatsapp_window_closed`…), `http` (the HTTP status, `0` if there was no response), `message`, `detail`, `data` and
+  `request_id`, besides `error` and `description`. Up to 1.0.3 it carried only `error` and `description`, so a workflow
+  could not tell one error from another.
+- **The error output works.** With On Error → *Continue (using error output)*, a failed item now goes out through the
+  error output, with `error`, `message` and the fields of the API inside `details` (`details.code`, `details.http`…): n8n
+  only sends an item there when it has nothing else. Up to 1.0.3, because of its `description`, it went out through the
+  normal output, as if it had worked.
+- **A successful answer that is not JSON is an error.** The HTML page of a proxy or a captive portal with a `200` used to
+  come out as an empty success (`{"status": "success", "message": "OK"}`); now it fails with `HTTP 200: the response is
+  not JSON (text/html)`, like in the SDKs. An empty answer is still a success.
+- The README said that the API does not keep the `5xx` errors of a send. It keeps the `500`, which may come with the send
+  already done: repeating it with the same `Idempotency-Key` returns that same `500` without doing it again. A `503` did
+  nothing and can be repeated with the same key. The node does the same as before: it does not repeat a send with a `5xx`.
+- The README links the SDK in its seven languages (PHP, Python, Node.js, Java, C#, Go and Ruby).
+
 ## 1.0.3
 
 - Get Many with Return All (calls, SMS, WhatsApp messages): an empty page with `has_more: true` is no longer the end of
