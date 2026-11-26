@@ -1,7 +1,7 @@
 import type { INodeProperties } from 'n8n-workflow';
 
-/** «Return All» y «Limit» de un listado por cursor (operación getAll del recurso). */
-export function pagination(resource: string): INodeProperties[] {
+/** «Return All» y «Limit» de un listado por cursor (la operación getAll del recurso, u otra que se diga). */
+export function pagination(resource: string, operation = 'getAll'): INodeProperties[] {
 	return [
 		{
 			displayName: 'Return All',
@@ -9,7 +9,7 @@ export function pagination(resource: string): INodeProperties[] {
 			type: 'boolean',
 			default: false,
 			description: 'Whether to return all results or only up to a given limit',
-			displayOptions: { show: { resource: [resource], operation: ['getAll'] } },
+			displayOptions: { show: { resource: [resource], operation: [operation] } },
 		},
 		{
 			displayName: 'Limit',
@@ -18,7 +18,7 @@ export function pagination(resource: string): INodeProperties[] {
 			default: 50,
 			typeOptions: { minValue: 1 },
 			description: 'Max number of results to return',
-			displayOptions: { show: { resource: [resource], operation: ['getAll'], returnAll: [false] } },
+			displayOptions: { show: { resource: [resource], operation: [operation], returnAll: [false] } },
 		},
 	];
 }

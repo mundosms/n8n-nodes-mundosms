@@ -11,6 +11,7 @@ import { accountDescription } from './descriptions/account';
 import { callDescription } from './descriptions/call';
 import { campaignDescription } from './descriptions/campaign';
 import { numcheckDescription } from './descriptions/numcheck';
+import { queueDescription } from './descriptions/queue';
 import { smsDescription } from './descriptions/sms';
 import { whatsappDescription } from './descriptions/whatsapp';
 import { rfc3986 } from './shared/signing';
@@ -18,7 +19,13 @@ import { idempotencyKey } from './shared/idempotency';
 import { CREDENTIAL_NAME, mundoSmsList, mundoSmsRequest } from './shared/transport';
 
 /** Lo más que da cada listado por página. */
-const MAX_PAGE_SIZE: Record<string, number> = { '/calls': 100, '/sms': 500, '/whatsapp/messages': 500 };
+const MAX_PAGE_SIZE: Record<string, number> = {
+	'/calls': 100,
+	'/queues': 500,
+	'/sms': 500,
+	'/whatsapp/messages': 500,
+	'/whatsapp/opt-outs': 500,
+};
 
 /** Los campos opcionales que se mandan: sin los vacíos (texto vacío, 0 en un id). */
 function nonEmptyFields(fields: IDataObject, idFields: string[] = []): IDataObject {
@@ -39,9 +46,57 @@ function parseNumberList(value: string): string[] {
 		.filter(Boolean);
 }
 
+/** Un texto de un campo, sin espacios alrededor: también un número que llega de una expresión. */
+function text(value: unknown): string {
+	return value === undefined || value === null ? '' : String(value).trim();
+}
+
 /** Un id que va en la ruta, codificado como lo firma la credencial. */
 function pathId(value: unknown): string {
 	return rfc3986(String(value).trim());
+}
+
+/**
+ * Los agentes de una cola para `PATCH /queues/{id}`: la lista ENTERA (la API saca de la cola a los que no van), o `undefined`
+ * si se dejan como están. Cada uno con sus cuatro campos: `ring_in_use` y `wrapup_time` a null son los de la cola.
+ */
+function queueAgents(this: IExecuteFunctions, i: number): IDataObject[] | undefined {
+	const mode = this.getNodeParameter('agentsInput', i, 'keep') as string;
+	if (mode === 'keep') return undefined;
+	if (mode === 'json') {
+		let value = this.getNodeParameter('agentsJson', i, '[]') as unknown;
+		if (typeof value === 'string') {
+			try {
+				value = JSON.parse(value.trim() || '[]');
+			} catch {
+				throw new NodeOperationError(this.getNode(), 'Agents (JSON) is not valid JSON', { itemIndex: i });
+			}
+		}
+		if (!Array.isArray(value)) {
+			throw new NodeOperationError(this.getNode(), 'Agents (JSON) has to be a list', {
+				itemIndex: i,
+				description: 'For example: [{"agent": "reception"}, {"agent": "34600123456", "penalty": 1}]',
+			});
+		}
+		return value as IDataObject[];
+	}
+	const rows = ((this.getNodeParameter('agents', i, {}) as IDataObject).agent ?? []) as IDataObject[];
+	return rows.map((row, n) => {
+		const penalty = typeof row.penalty === 'string' && /^\d+$/.test(row.penalty.trim()) ? Number(row.penalty) : row.penalty;
+		const wrapup = text(row.wrapup_time);
+		if (wrapup !== '' && !/^\d+$/.test(wrapup)) {
+			throw new NodeOperationError(this.getNode(), `Agent ${n + 1}: the Wrap-Up Time has to be a whole number of seconds`, {
+				itemIndex: i,
+				description: 'Leave it empty to use the Wrap-Up Time of the queue.',
+			});
+		}
+		return {
+			agent: text(row.agent),
+			penalty: penalty === undefined || penalty === null || penalty === '' ? 0 : penalty,
+			ring_in_use: row.ring_in_use === 'yes' ? true : row.ring_in_use === 'no' ? false : null,
+			wrapup_time: wrapup === '' ? null : Number(wrapup),
+		};
+	});
 }
 
 /** Lo que sale del nodo: `data` si la respuesta lo trae como objeto (y fue bien); si no, la respuesta entera. */
@@ -59,7 +114,8 @@ export class MundoSms implements INodeType {
 		group: ['output'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-		description: 'Send SMS and WhatsApp messages, check calls, launch VozPush campaigns and check numbers with MundoSMS',
+		description:
+			'Send SMS and WhatsApp messages, check calls, manage call queues, launch VozPush campaigns and check numbers with MundoSMS',
 		defaults: { name: 'MundoSMS' },
 		usableAsTool: true,
 		inputs: [NodeConnectionTypes.Main],
@@ -75,6 +131,7 @@ export class MundoSms implements INodeType {
 					{ name: 'Account', value: 'account' },
 					{ name: 'Call', value: 'call' },
 					{ name: 'NumCheck', value: 'numcheck' },
+					{ name: 'Queue', value: 'queue' },
 					{ name: 'SMS', value: 'sms' },
 					{ name: 'VozPush Campaign', value: 'campaign' },
 					{ name: 'WhatsApp', value: 'whatsapp' },
@@ -87,6 +144,7 @@ export class MundoSms implements INodeType {
 			...callDescription,
 			...campaignDescription,
 			...numcheckDescription,
+			...queueDescription,
 		],
 	};
 
@@ -215,6 +273,25 @@ async function executeOperation(
 			];
 		}
 		if (operation === 'getAll') return await list('/whatsapp/messages');
+		if (operation === 'getAllOptOuts') return await list('/whatsapp/opt-outs');
+		if (operation === 'getOptOut') {
+			return [
+				toOutput(await request.call(this, 'GET', '/whatsapp/opt-outs/' + pathId(param('optOutId')), {}, undefined, i)),
+			];
+		}
+		if (operation === 'addOptOut') {
+			// sin Number ID (0), de todos los números: no se manda
+			const body = { contact: text(param('contact')), ...bodyFields() };
+			return [toOutput(await request.call(this, 'POST', '/whatsapp/opt-outs', {}, body, i, postKey()))];
+		}
+		if (operation === 'removeOptOut') {
+			// un DELETE lleva sus parámetros en la query; consent_confirmed solo cuando se confirma
+			const qs: IDataObject = { reason: text(param('reason')) };
+			if (param('consentConfirmed', false) === true) qs.consent_confirmed = true;
+			return [
+				toOutput(await request.call(this, 'DELETE', '/whatsapp/opt-outs/' + pathId(param('optOutId')), qs, undefined, i)),
+			];
+		}
 	}
 
 	if (resource === 'call') {
@@ -226,6 +303,30 @@ async function executeOperation(
 		if (operation === 'dial') {
 			const body = { extension: (param('extension') as string).trim(), to: (param('to') as string).trim(), ...bodyFields() };
 			return [toOutput(await request.call(this, 'POST', '/calls', {}, body, i, postKey()))];
+		}
+	}
+
+	if (resource === 'queue') {
+		const queuePath = () => '/queues/' + pathId(param('queueId'));
+		if (operation === 'getAll') return await list('/queues');
+		if (operation === 'get') return [toOutput(await request.call(this, 'GET', queuePath(), {}, undefined, i))];
+		if (operation === 'create') {
+			const body = { name: text(param('name')), ...bodyFields() };
+			return [toOutput(await request.call(this, 'POST', '/queues', {}, body, i, postKey()))];
+		}
+		if (operation === 'update') {
+			// solo lo que se cambia: un 0, un false o una lista vacía (Join Empty sin nada) son valores
+			const body = nonEmptyFields(param('updateFields', {}) as IDataObject);
+			const agents = queueAgents.call(this, i);
+			if (agents !== undefined) body.agents = agents;
+			return [toOutput(await request.call(this, 'PATCH', queuePath(), {}, body, i))];
+		}
+		if (operation === 'delete') return [toOutput(await request.call(this, 'DELETE', queuePath(), {}, undefined, i))];
+		if (operation === 'getStats') {
+			return [toOutput(await request.call(this, 'GET', queuePath() + '/stats', {}, undefined, i))];
+		}
+		if (operation === 'resetStats') {
+			return [toOutput(await request.call(this, 'POST', queuePath() + '/stats/reset', {}, undefined, i, postKey()))];
 		}
 	}
 

@@ -1,7 +1,7 @@
 {
 	"name": "@mundosms/n8n-nodes-mundosms",
-	"version": "1.0.4",
-	"description": "MundoSMS for n8n: send SMS and WhatsApp messages, read the call history, click2dial, VozPush campaigns and NumCheck, with the request signing of the MundoSMS REST API v3 done for you.",
+	"version": "1.0.5",
+	"description": "MundoSMS for n8n: send SMS and WhatsApp messages, read the call history, manage call queues, click2dial, VozPush campaigns and NumCheck, with the request signing of the MundoSMS REST API v3 done for you.",
 	"license": "MIT",
 	"homepage": "https://www.mundosms.es/api-v3",
 	"keywords": [

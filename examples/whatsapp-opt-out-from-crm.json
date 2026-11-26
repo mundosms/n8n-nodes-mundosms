@@ -1,0 +1,109 @@
+{
+  "name": "Opt out WhatsApp contacts from your CRM with MundoSMS",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mundosms-whatsapp-opt-out",
+        "options": {}
+      },
+      "id": "4f6b2c1e-8a3d-4b7e-9c2f-1d5e8a7b3c60",
+      "name": "CRM Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "9d3e7a1b-5c2f-4e8d-a6b4-3f1c9e7d2a85"
+    },
+    {
+      "parameters": {
+        "resource": "whatsapp",
+        "operation": "addOptOut",
+        "contact": "={{ $json.body.phone }}",
+        "additionalFields": {}
+      },
+      "id": "a2c8e4f6-1b3d-45e7-8f9a-6c4b2d1e0f37",
+      "name": "Opt Out on WhatsApp",
+      "type": "@mundosms/n8n-nodes-mundosms.mundoSms",
+      "typeVersion": 1,
+      "position": [
+        320,
+        0
+      ],
+      "credentials": {
+        "mundoSmsApi": {
+          "id": null,
+          "name": "MundoSMS API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Opt out WhatsApp contacts from your CRM with MundoSMS\n\nWhen a customer tells you that they do not want your WhatsApp messages any more, and you write it down in your CRM, the CRM calls this workflow and the contact is opted out of your MundoSMS WhatsApp numbers. From then on, your bulk sends (campaigns) skip them.\n\n### How it works\n1. Your CRM sends a POST to **CRM Webhook** with the phone number of the contact, for example `{\"phone\": \"34600000000\"}`. The number can carry `+`, spaces or dashes: the API removes them.\n2. **Opt Out on WhatsApp** adds the opt-out, from all your WhatsApp numbers. If the contact was already opted out, nothing changes and the output says `created: false`.\n\n### Setup steps\n- [ ] Open **Opt Out on WhatsApp** and select your **MundoSMS API** credential. Its API key needs the permission `whatsapp` or `whatsapp_optout`: `write` does not include it.\n- [ ] In your CRM, call the production URL of **CRM Webhook** with a POST and the phone number in `phone`. If your CRM uses another name, change `{{ $json.body.phone }}` in **Opt Out on WhatsApp**.\n- [ ] Protect the webhook: in **CRM Webhook**, set Authentication to Header Auth and send that header from your CRM.\n- [ ] Activate the workflow.\n\n### Customization\n- Only from one of your numbers: in **Opt Out on WhatsApp**, Additional Fields > Number ID.\n- Single messages (Send Text, Send Template) do not check the opt-outs. Before sending one, look the contact up with **Get Many Opt-Outs** (filter Contact).\n- To opt a contact back in, use **Remove Opt-Out** with a reason, and only with their consent.",
+        "height": 700,
+        "width": 520
+      },
+      "id": "c7e1a9d3-2f4b-46c8-b0e2-8d6f4a1c9b52",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## CRM Webhook\nReceives the POST of your CRM. The phone number goes in the body, in `phone`.",
+        "height": 440,
+        "width": 260,
+        "color": 7
+      },
+      "id": "e3b5d7f9-4a6c-48e0-92b4-0f8e6c2a4d71",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Opt out on WhatsApp\nAdds the opt-out of the contact, from all your WhatsApp numbers. Its output is the opt-out: `id`, `contact`, `source` (`api`) and `created`.",
+        "height": 440,
+        "width": 260,
+        "color": 7
+      },
+      "id": "f9d1b3e5-6c8a-4a02-b4d6-2a0c8e4f6b93",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        240,
+        -200
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "CRM Webhook": {
+      "main": [
+        [
+          {
+            "node": "Opt Out on WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

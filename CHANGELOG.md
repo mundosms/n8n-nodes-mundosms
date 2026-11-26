@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.0.5
+
+- **New resource: Queue**, the call queues of your PBX (API key permission `voip_queue_read` to read them and
+  `voip_queue_write` to change them, or `voip`, or `read` and `write`):
+  - Get Many (with Return All by cursor and the filters Agent, Name and Order) and Get, each queue with its options and its
+    agents;
+  - Create, with the default options and no agents (only the name, which cannot be changed later);
+  - Update: the options in Update Fields (only the ones you add are sent) and the agents, which the API replaces as a whole
+    list, in order. Agents → Keep Current Agents (the default) does not touch them; Replace (Using Fields Below) or Replace
+    (Using JSON) sends the new list, and an empty list leaves the queue without agents;
+  - Delete (a queue in use answers `409` with the code `queue_in_use` and where it is used in `data`);
+  - Get Stats (calls waiting, answered and abandoned, service level and the state of each agent) and Reset Stats.
+- **WhatsApp opt-outs**, the contacts who asked not to receive your messages (they stay out of your bulk sends):
+  - Get Many Opt-Outs (with Return All by cursor and the filters Contact, Number ID and Order) and Get Opt-Out (API key
+    permission `whatsapp_read`, or `whatsapp` or `read`);
+  - Add Opt-Out, from one of your numbers (Number ID) or from all of them, and Remove Opt-Out, with a reason and, when the
+    contact asked for the opt-out, Consent Confirmed. Both need the permission `whatsapp_optout` or `whatsapp`: `write`
+    does not include them.
+- The description of each new operation says the permission its API key needs.
+- A new example workflow, `whatsapp-opt-out-from-crm.json`: your CRM calls a webhook with a phone number and the contact is
+  opted out of your WhatsApp numbers.
+
 ## 1.0.4
 
 - **Continue On Fail and the error output keep the fields of the API.** With On Error → *Continue*, the item of a failed

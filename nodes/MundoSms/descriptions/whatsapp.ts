@@ -3,6 +3,9 @@ import { dateField, idempotencyKeyOption, orderOption, pagination } from './comm
 
 const showForSend = { resource: ['whatsapp'], operation: ['sendText', 'sendTemplate'] };
 const showForTemplate = { resource: ['whatsapp'], operation: ['sendTemplate'] };
+const READ = 'API key permission: read, whatsapp or whatsapp_read';
+/** `write` no lo incluye: quitar una baja deja rastro de quién lo hizo, y lo hace una clave que lo tenga expresamente. */
+const OPT_OUT = 'API key permission: whatsapp or whatsapp_optout, not included in write';
 
 export const whatsappDescription: INodeProperties[] = [
 	{
@@ -12,6 +15,12 @@ export const whatsappDescription: INodeProperties[] = [
 		noDataExpression: true,
 		displayOptions: { show: { resource: ['whatsapp'] } },
 		options: [
+			{
+				name: 'Add Opt-Out',
+				value: 'addOptOut',
+				action: 'Opt out a contact',
+				description: `Opt out a contact, so that your bulk sends skip them (${OPT_OUT})`,
+			},
 			{
 				name: 'Get',
 				value: 'get',
@@ -23,6 +32,24 @@ export const whatsappDescription: INodeProperties[] = [
 				value: 'getAll',
 				action: 'Get many messages',
 				description: 'Get the messages of your numbers, sent and received',
+			},
+			{
+				name: 'Get Many Opt-Outs',
+				value: 'getAllOptOuts',
+				action: 'Get the contacts who opted out',
+				description: `Get the contacts who asked not to receive your messages (${READ})`,
+			},
+			{
+				name: 'Get Opt-Out',
+				value: 'getOptOut',
+				action: 'Get a contact who opted out',
+				description: `Get an opt-out by its ID (${READ})`,
+			},
+			{
+				name: 'Remove Opt-Out',
+				value: 'removeOptOut',
+				action: 'Opt a contact back in',
+				description: `Opt a contact back in, only with their consent (${OPT_OUT})`,
 			},
 			{
 				name: 'Send Template',
@@ -225,6 +252,88 @@ export const whatsappDescription: INodeProperties[] = [
 			},
 			orderOption,
 			dateField('To', 'to_datetime', 'Before this moment'),
+		],
+	},
+	{
+		displayName: 'Contact',
+		name: 'contact',
+		type: 'string',
+		required: true,
+		default: '',
+		placeholder: '34600123456',
+		description: 'The phone number of the contact, with its country code',
+		displayOptions: { show: { resource: ['whatsapp'], operation: ['addOptOut'] } },
+	},
+	{
+		displayName: 'Additional Fields',
+		name: 'additionalFields',
+		type: 'collection',
+		placeholder: 'Add Field',
+		default: {},
+		displayOptions: { show: { resource: ['whatsapp'], operation: ['addOptOut'] } },
+		options: [
+			idempotencyKeyOption,
+			{
+				displayName: 'Number ID',
+				name: 'number_id',
+				type: 'number',
+				default: 0,
+				description: 'The WhatsApp number the contact opts out from (its ID). Without it, all your numbers.',
+			},
+		],
+	},
+	{
+		displayName: 'Opt-Out ID',
+		name: 'optOutId',
+		type: 'string',
+		required: true,
+		default: '',
+		description: 'The ID of the opt-out (its "ID" in Get Many Opt-Outs)',
+		displayOptions: { show: { resource: ['whatsapp'], operation: ['getOptOut', 'removeOptOut'] } },
+	},
+	{
+		displayName: 'Reason',
+		name: 'reason',
+		type: 'string',
+		required: true,
+		default: '',
+		placeholder: 'The customer asked for it in the shop',
+		description: 'Why the contact is opted back in, from 3 to 255 characters. It is kept with the change.',
+		displayOptions: { show: { resource: ['whatsapp'], operation: ['removeOptOut'] } },
+	},
+	{
+		displayName: 'Consent Confirmed',
+		name: 'consentConfirmed',
+		type: 'boolean',
+		default: false,
+		description:
+			'Whether the contact has told you they want to receive your messages again. Required when the contact asked for the opt-out (source "keyword" or "blocked"): without it, the API answers 400 with the code consent_required.',
+		displayOptions: { show: { resource: ['whatsapp'], operation: ['removeOptOut'] } },
+	},
+	...pagination('whatsapp', 'getAllOptOuts'),
+	{
+		displayName: 'Filters',
+		name: 'filters',
+		type: 'collection',
+		placeholder: 'Add Filter',
+		default: {},
+		displayOptions: { show: { resource: ['whatsapp'], operation: ['getAllOptOuts'] } },
+		options: [
+			{
+				displayName: 'Contact',
+				name: 'contact',
+				type: 'string',
+				default: '',
+				description: 'Only the opt-outs of this phone number',
+			},
+			{
+				displayName: 'Number ID',
+				name: 'number_id',
+				type: 'number',
+				default: 0,
+				description: 'Only the opt-outs of this WhatsApp number (its ID), and the ones of all your numbers, which cover it',
+			},
+			{ ...orderOption, description: 'Sort order. Without it, the newest first.' },
 		],
 	},
 ];
